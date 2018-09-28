@@ -1,0 +1,80 @@
+apply plugin: 'java'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.amazonaws:aws-lambda-java-core:1.1.0'
+    implementation 'com.amazonaws:aws-lambda-java-events:1.1.0'
+    implementation 'com.amazonaws:aws-java-sdk-core:1.11.271'
+    implementation 'com.amazonaws:aws-java-sdk-lambda:1.11.271'
+}
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.2'
+    }
+}
+
+apply plugin: 'com.github.johnrengelman.shadow'
+
+
+buildscript {
+    repositories {
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
+    }
+}
+
+
+import jp.classmethod.aws.gradle.lambda.AWSLambdaMigrateFunctionTask 
+
+apply plugin: 'java'
+apply plugin: "base"
+apply plugin: "jp.classmethod.aws.lambda"
+apply plugin: 'idea'
+
+idea {
+    module {
+        downloadJavadoc = true
+        downloadSources = true
+    }
+}
+
+sourceCompatibility = 1.8
+
+aws {
+    profileName = "default"
+    region = "us-east-2"
+}
+
+lambda {
+    region = "us-east-2"
+}
+
+task buildZip(type: Zip) {
+    from compileJava
+    from processResources
+    into('lib') {
+        from configurations.compileClasspath
+    }
+}
+
+def jarFilePath = 'build/distributions/HelloLambda.zip'
+
+task deploy(type: AWSLambdaMigrateFunctionTask, dependsOn: shadowJar) {
+    functionName = "arn:aws:lambda:us-east-2:997404344920:function:HelloLambda"
+    role = "arn:aws:iam::997404344920:role/owner"
+    zipFile = file(jarFilePath)
+    handler = "com.frankegan.example.Hello::handleRequest"
+}
+
+build.dependsOn buildZip
